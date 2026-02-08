@@ -1,0 +1,38 @@
+# Главный конфиг Unified Hub
+hub:
+  timezone: "Europe/Moscow"
+  run_id_format: "%Y%m%d_%H%M%S"
+  output_root: "data/outputs"
+  db:
+    kind: "duckdb"   # duckdb | sqlite | mssql
+    path: "data/mart/hub.duckdb"
+
+pipelines:
+  avito:
+    enabled: true
+    note: "Можно обернуть существующий проект (Crawlee + ваш run_pipeline.py)."
+    inputs:
+      crawlee_storage_root: "crawlee_storage"
+    outputs:
+      latest_folder: "data/outputs/latest/avito"
+  health:
+    enabled: true
+    inputs:
+      samsung_export_drop: "data/raw/health/inbox"  # сюда кладёшь ZIP/CSV из Samsung Health
+    outputs:
+      latest_folder: "data/outputs/latest/health"
+  models:
+    enabled: true
+    inputs:
+      model_spec: "contracts/model_spec.yaml"       # сюда потом вставишь формулы/неравенства
+    outputs:
+      latest_folder: "data/outputs/latest/models"
+
+llm_bundle:
+  enabled: true
+  max_files: 40
+  include_globs:
+    - "data/outputs/latest/**"
+  exclude_globs:
+    - "**/*.parquet"
+    - "**/*.duckdb"

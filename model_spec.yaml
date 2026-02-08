@@ -1,0 +1,28 @@
+# Model Spec v0 (заготовка)
+# Сюда ты вставишь результат "оцифровки" рукописных формул.
+meta:
+  name: "equation_model_v0"
+  description: "Система уравнений/неравенств + цели оптимизации"
+  time_index: "t"          # t (день), w (неделя), m (месяц)
+  horizon_steps: 180
+variables:
+  - name: "cash_t"
+    kind: "state"          # state|decision|derived|slack|input
+    unit: "RUB"
+    desc: "остаток денег"
+  - name: "p_t"
+    kind: "decision"
+    unit: "RUB/day"
+    desc: "управляемый платеж/поток (пример)"
+equations:
+  - id: "eq_cash_balance"
+    type: "eq"             # eq|ineq
+    scope: "time"
+    expr: "cash[t+1] = cash[t] + income[t] - spend[t] - p[t]"
+objectives:
+  - id: "obj_1"
+    priority: 1
+    sense: "min"
+    expr: "sum(viol_cash[t])"
+notes:
+  - "Добавь сюда ограничения, слэки и цели из заметки (после оцифровки)."

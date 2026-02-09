@@ -1,0 +1,11 @@
+key_artifacts:
+- START_HERE.md
+- contracts/meta/COMPILED_MEMORY.md
+- contracts/meta/START_HERE.md
+- contracts/meta/project_state.yml
+- pipelines/run_all.py
+last_green_run: '20260209_204416'
+notes:
+- State file is updated by pipelines/run_all.py after successful execution.
+project: MVP
+version: 1

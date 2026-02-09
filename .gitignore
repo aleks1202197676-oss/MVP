@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+
+# Generated runtime artifacts
+data/ai_contract/latest/latest_bundle.zip
+run_manifest.json

@@ -1,0 +1,5 @@
+item_id,title,cost,priority
+item_001,Groceries,120.00,10
+item_002,Utilities,80.00,9
+item_003,Gym Membership,40.00,5
+item_004,New Headphones,150.00,4

@@ -8,6 +8,7 @@ import yaml
 from core.compiled_memory import update_project_state, write_compiled_memory
 from core.llm_bundle import build_llm_bundle
 from core.run_registry import ensure_run_folders, new_run_id
+from pipelines.finance import run_finance_pipeline
 
 
 def load_cfg(path: str = "config/hub.yaml") -> dict:
@@ -39,6 +40,12 @@ def main() -> None:
     cfg = load_cfg()
     run_id = new_run_id(cfg["hub"]["run_id_format"])
     ensure_run_folders(cfg["hub"]["output_root"], run_id)
+
+    finance_cfg = cfg.get("pipelines", {}).get("finance", {})
+    if finance_cfg.get("enabled", False):
+        finance_output_dir = finance_cfg.get("outputs", {}).get("latest_folder", "data/outputs/latest/finance")
+        finance_outputs = run_finance_pipeline(output_dir=finance_output_dir)
+        print(f"[FINANCE] generated {len(finance_outputs)} files")
 
     bundle_cfg = cfg.get("bundle", {})
     if not bundle_cfg.get("enabled", True):

@@ -5,7 +5,7 @@ hub:
 
 pipelines:
   finance:
-    enabled: false
+    enabled: true
     outputs:
       latest_folder: "data/outputs/latest/finance"
 

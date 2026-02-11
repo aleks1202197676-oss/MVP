@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   verify-bundle:
     runs-on: ubuntu-latest
@@ -30,6 +33,17 @@ jobs:
           name: latest_bundle
           path: data/ai_contract/latest/latest_bundle.zip
           if-no-files-found: error
+
+      - name: Publish latest bundle release asset
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view latest-bundle >/dev/null 2>&1; then
+            gh release upload latest-bundle data/ai_contract/latest/latest_bundle.zip --clobber
+          else
+            gh release create latest-bundle data/ai_contract/latest/latest_bundle.zip -t "latest bundle" -n "Auto-published from main"
+          fi
 
       - name: Verify required bundle entries
         run: |

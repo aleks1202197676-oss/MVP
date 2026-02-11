@@ -1,0 +1,16 @@
+hub:
+  timezone: "Europe/Moscow"
+  run_id_format: "%Y%m%d_%H%M%S"
+  output_root: "data/ai_contract"
+
+llm_bundle:
+  enabled: true
+  zip_path: "data/ai_contract/latest/latest_bundle.zip"
+  max_files: 5000
+  include_globs:
+    - "contracts/meta/**"
+    - "contracts/meta/templates/**"
+    - "data/outputs/latest/**"
+  exclude_globs:
+    - "**/*.parquet"
+    - "**/*.duckdb"

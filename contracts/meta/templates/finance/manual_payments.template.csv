@@ -1,0 +1,2 @@
+payment_id,date,payee,amount,currency,category,comment
+pay_001,2026-01-01,example,0.00,RUB,misc,example payment

@@ -1,0 +1,19 @@
+hypotheses:
+  - id: HYP-001
+    statement: "Memory Pack снижает время онбординга в новом чате"
+    evidence:
+      - "Все ключевые контексты собраны в одном месте"
+      - "Bundle содержит YAML/MD и CSV шаблоны"
+    status: "active"
+    links:
+      - "contracts/meta/project_memory.yml"
+      - "contracts/meta/PROJECT_OVERVIEW.md"
+
+  - id: HYP-002
+    statement: "Фиксированный путь latest_bundle.zip уменьшает ошибки интеграции"
+    evidence:
+      - "Скриптам не нужно вычислять динамическое имя bundle"
+    status: "active"
+    links:
+      - "config/hub.yaml"
+      - "pipelines/run_all.py"

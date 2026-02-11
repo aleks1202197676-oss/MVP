@@ -31,3 +31,9 @@
 2) `contracts/<new_domain>_contract.json`
 3) Регистрируешь в `config/hub.yaml` и в `pipelines/run_all.py`
 
+
+
+## Memory Pack
+- Расположение: `contracts/meta/`.
+- В состав входят: `project_memory.yml`, `decisions.yml`, `hypotheses.yml`, `roadmap.yml`, а также обзорные `*.md` файлы и CSV шаблоны.
+- Для старта нового чата приложи `data/ai_contract/latest/latest_bundle.zip` — в нём уже есть Memory Pack.

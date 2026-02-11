@@ -1,0 +1,30 @@
+version: 1
+project:
+  name: "Unified Hub Starter"
+  purpose: "Единый каркас пайплайнов и сборки LLM bundle"
+  primary_bundle: "data/ai_contract/latest/latest_bundle.zip"
+
+structure:
+  config: "config/hub.yaml"
+  runner: "pipelines/run_all.py"
+  memory_pack_root: "contracts/meta"
+  templates_root: "contracts/meta/templates"
+
+run_commands:
+  all: "python -m pipelines.run_all"
+  validate_bundle: "unzip -l data/ai_contract/latest/latest_bundle.zip"
+
+io_contracts:
+  inputs:
+    - "contracts/meta/**"
+    - "contracts/meta/templates/**"
+    - "data/outputs/latest/**"
+  outputs:
+    - "data/ai_contract/latest/latest_bundle.zip"
+    - "data/ai_contract/latest/run_manifest.json"
+
+invariants:
+  - "Команда python -m pipelines.run_all завершается успешно"
+  - "latest_bundle.zip всегда создаётся в data/ai_contract/latest"
+  - "Memory Pack включён в latest_bundle.zip"
+  - "Существующие finance-выходы не изменяются"

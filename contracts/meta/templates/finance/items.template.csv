@@ -1,0 +1,2 @@
+item_id,date,card_id,category,amount,currency,description
+item_001,2026-01-01,card_001,groceries,0.00,RUB,example item

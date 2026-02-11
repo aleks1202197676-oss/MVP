@@ -1,0 +1,2 @@
+card_id,card_name,bank,currency,is_active
+card_001,Main Card,TBank,RUB,true

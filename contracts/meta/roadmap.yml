@@ -1,0 +1,16 @@
+now:
+  - item: "Поддержка Memory Pack в репозитории"
+    acceptance_criteria:
+      - "Созданы файлы memory pack в contracts/meta"
+      - "CSV шаблоны finance доступны в contracts/meta/templates/finance"
+      - "latest_bundle.zip содержит contracts/meta/**"
+
+next:
+  - item: "Расширить decisions/hypotheses реальными событиями разработки"
+    acceptance_criteria:
+      - "После каждого релиза добавляется минимум 1 запись"
+
+later:
+  - item: "Добавить автоматическую валидацию структуры Memory Pack в CI"
+    acceptance_criteria:
+      - "CI падает при отсутствии обязательных файлов"

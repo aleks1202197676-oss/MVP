@@ -24,6 +24,13 @@ jobs:
       - name: Verify bundle exists
         run: test -f data/ai_contract/latest/latest_bundle.zip
 
+      - name: Upload latest bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest_bundle
+          path: data/ai_contract/latest/latest_bundle.zip
+          if-no-files-found: error
+
       - name: Verify required bundle entries
         run: |
           python - <<'PY'

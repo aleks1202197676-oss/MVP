@@ -40,9 +40,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view latest-bundle >/dev/null 2>&1; then
-            gh release upload latest-bundle data/ai_contract/latest/latest_bundle.zip --clobber
+            gh release upload latest-bundle data/ai_contract/latest/latest_bundle.zip#latest_bundle.zip --clobber
           else
-            gh release create latest-bundle data/ai_contract/latest/latest_bundle.zip -t "latest bundle" -n "Auto-published from main"
+            gh release create latest-bundle data/ai_contract/latest/latest_bundle.zip#latest_bundle.zip -t "latest-bundle" -n "Auto-published from main"
           fi
 
       - name: Verify required bundle entries
@@ -58,6 +58,10 @@ jobs:
               'pipelines/run_all.py',
               'contracts/finance/README.md',
           ]
+          finance_pipeline_candidates = [
+              'pipelines/finance.py',
+              'pipelines/finance/main.py',
+          ]
 
           with ZipFile(bundle_path) as bundle:
               names = set(bundle.namelist())
@@ -66,7 +70,16 @@ jobs:
           if missing:
               raise SystemExit(f'Missing required bundle entries: {missing}')
 
-          print(f'Bundle contains all required entries ({len(required_paths)} checked).')
+          if not any(path in names for path in finance_pipeline_candidates):
+              raise SystemExit(
+                  'Missing finance pipeline entry: expected one of '
+                  f'{finance_pipeline_candidates}'
+              )
+
+          print(
+              'Bundle contains all required entries '
+              f'({len(required_paths)} fixed paths + finance pipeline variants checked).'
+          )
           PY
 
       - name: Verify finance report when enabled

@@ -1,3 +1,3 @@
 @echo off
-cd /d "%~dp0.."
-python -m pipelines.run_all
+REM Deprecated entrypoint. Use 00__CLICK_HERE\02__BUILD_LLM_BUNDLE.cmd.
+call "%~dp0\00__CLICK_HERE\02__BUILD_LLM_BUNDLE.cmd"

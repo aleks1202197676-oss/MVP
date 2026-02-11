@@ -25,27 +25,7 @@ jobs:
         run: test -f data/ai_contract/latest/latest_bundle.zip
 
       - name: Verify required bundle entries
-        run: |
-          python - <<'PY'
-          from zipfile import ZipFile
-
-          bundle_path = 'data/ai_contract/latest/latest_bundle.zip'
-          required_paths = [
-              'contracts/meta/START_HERE.md',
-              'contracts/meta/project_state.yml',
-              'contracts/meta/COMPILED_MEMORY.md',
-              'pipelines/run_all.py',
-          ]
-
-          with ZipFile(bundle_path) as bundle:
-              names = set(bundle.namelist())
-
-          missing = [path for path in required_paths if path not in names]
-          if missing:
-              raise SystemExit(f'Missing required bundle entries: {missing}')
-
-          print(f'Bundle contains all required entries ({len(required_paths)} checked).')
-          PY
+        run: python scripts/verify_bundle.py data/ai_contract/latest/latest_bundle.zip
 
       - name: Verify finance report when enabled
         run: |

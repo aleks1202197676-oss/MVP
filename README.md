@@ -1,11 +1,9 @@
 # MVP Hub
 
 ## Download
-[Download latest_bundle.zip](https://github.com/aleks1202197676-oss/MVP/releases/download/latest-bundle/latest_bundle.zip)
+- One-click: https://github.com/aleks1202197676-oss/MVP/releases/download/latest-bundle/latest_bundle.zip
+- Fallback: https://github.com/aleks1202197676-oss/MVP/releases/tag/latest-bundle
 
-<sub><a href="https://github.com/aleks1202197676-oss/MVP/releases/tag/latest-bundle">Open release page</a></sub>
-
-This is the latest generated bundle from main.
 
 ## Быстрый старт
 ```bash

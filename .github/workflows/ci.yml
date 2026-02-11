@@ -46,6 +46,7 @@ jobs:
               'contracts/meta/COMPILED_MEMORY.md',
               'contracts/finance/README.md',
               'pipelines/run_all.py',
+              'memory_pack/handoff.md',
           ]
           finance_pipeline_candidates = [
               'pipelines/finance.py',

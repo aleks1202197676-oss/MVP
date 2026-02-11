@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   verify-bundle:
     runs-on: ubuntu-latest
@@ -41,7 +44,12 @@ jobs:
               'contracts/meta/START_HERE.md',
               'contracts/meta/project_state.yml',
               'contracts/meta/COMPILED_MEMORY.md',
+              'contracts/finance/README.md',
               'pipelines/run_all.py',
+          ]
+          finance_pipeline_candidates = [
+              'pipelines/finance.py',
+              'pipelines/finance/main.py',
           ]
 
           with ZipFile(bundle_path) as bundle:
@@ -51,7 +59,16 @@ jobs:
           if missing:
               raise SystemExit(f'Missing required bundle entries: {missing}')
 
-          print(f'Bundle contains all required entries ({len(required_paths)} checked).')
+          if not any(path in names for path in finance_pipeline_candidates):
+              raise SystemExit(
+                  'Missing finance pipeline entry; expected one of '
+                  f'{finance_pipeline_candidates}'
+              )
+
+          print(
+              'Bundle contains all required entries '
+              f'({len(required_paths)} fixed + finance pipeline candidate).'
+          )
           PY
 
       - name: Verify finance report when enabled
@@ -67,3 +84,15 @@ jobs:
                   raise SystemExit('finance enabled but report is missing')
           print('finance check passed')
           PY
+
+      - name: Publish latest-bundle release asset
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view latest-bundle >/dev/null 2>&1 || \
+            gh release create latest-bundle \
+              --title "latest-bundle" \
+              --notes "Auto-updated latest bundle"
+
+          gh release upload latest-bundle data/ai_contract/latest/latest_bundle.zip#latest_bundle.zip --clobber

@@ -1,0 +1,8 @@
+hypotheses:
+  - hypothesis: "Stable Memory Pack reduces onboarding time for new agents."
+    links:
+      - "contracts/meta/START_HERE.md"
+  - hypothesis: "Strict bundle checks prevent context loss between runs."
+    links:
+      - "config/hub.yaml"
+      - "pipelines/run_all.py"

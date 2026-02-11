@@ -1,0 +1,7 @@
+roadmap:
+  - milestone: "CI hardening"
+    status: in_progress
+    description: "Run deterministic end-to-end checks for bundle composition."
+  - milestone: "Data quality checks"
+    status: planned
+    description: "Add CSV schema validation for finance outputs."

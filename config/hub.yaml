@@ -1,0 +1,19 @@
+hub:
+  timezone: "Europe/Moscow"
+  run_id_format: "%Y%m%d_%H%M%S"
+  output_root: "data/outputs"
+
+llm_bundle:
+  enabled: true
+  max_files: 500
+  include_globs:
+    - "contracts/meta/**"
+    - "contracts/finance/**"
+    - "config/**"
+    - "data/outputs/latest/finance/report.md"
+    - "data/outputs/latest/finance/*.csv"
+    - "data/outputs/latest/run_manifest.json"
+    - "data/ai_contract/latest/run_manifest.json"
+  exclude_globs:
+    - "**/*.parquet"
+    - "**/*.duckdb"

@@ -1,0 +1,42 @@
+project_memory:
+  project: Unified Hub MVP
+  language: python
+  phase: mvp
+  entrypoints:
+    main: python -m pipelines.run_all
+    finance_only: python -m pipelines.finance.run_finance
+  repo_structure:
+    config:
+    - config/hub.yaml
+    - config/finance_config.yml
+    core:
+    - core/llm_bundle.py
+    - core/run_registry.py
+    pipelines:
+    - pipelines/run_all.py
+    - pipelines/finance/*
+    contracts:
+    - contracts/finance/*
+    - contracts/meta/*
+    outputs:
+      latest_finance: data/outputs/latest/finance
+      ai_contract_latest: data/ai_contract/latest
+  guarantees:
+  - run_all creates run_manifest.json and latest_bundle.zip
+  - copies run_manifest.json and latest_bundle.zip to data/ai_contract/latest/
+  - finance pipeline produces report.md + daily/monthly CSVs
+  next_step:
+  - Add CI that runs pipelines.run_all and verifies bundle contains contracts/meta/**
+    and finance outputs
+  last_green_run:
+    datetime: '2026-02-09T19:23:28.431307+00:00'
+    git_sha: db7019dc2be0d8e8e26757b6d458e95276f3d5c5
+    command: python -m pipelines.run_all
+    key_artifacts:
+    - data/outputs/latest/finance/daily.csv
+    - data/outputs/latest/finance/monthly.csv
+    - data/outputs/latest/finance/report.md
+    - data/outputs/latest/run_manifest.json
+  artifacts_map:
+    ai_contract_latest: data/ai_contract/latest
+    outputs_latest_finance: data/outputs/latest/finance

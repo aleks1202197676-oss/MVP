@@ -1,0 +1,4 @@
+metrics:
+  income: "Incoming money for period"
+  expense: "Outgoing money for period"
+  net: "income - expense"

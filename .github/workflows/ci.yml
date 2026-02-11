@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  run-all:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run all pipelines
+        run: python -m pipelines.run_all
+
+      - name: Validate artifacts exist
+        shell: bash
+        run: |
+          test -f data/ai_contract/latest/run_manifest.json
+          test -f data/ai_contract/latest/latest_bundle.zip
+          if [ -f config/finance_config.yml ] && python -c "import yaml;print(yaml.safe_load(open('config/finance_config.yml'))['finance'].get('enabled', True))" | grep -qi true; then
+            test -f data/outputs/latest/finance/report.md
+          fi
+
+      - name: Validate bundle content
+        shell: bash
+        run: |
+          unzip -l data/ai_contract/latest/latest_bundle.zip > /tmp/bundle_list.txt
+          rg "contracts/meta/" /tmp/bundle_list.txt

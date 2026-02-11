@@ -1,0 +1,9 @@
+decisions:
+  - id: DEC-001
+    title: "Use project_state.yml as source of truth"
+    status: accepted
+    date: "2026-02-09"
+  - id: DEC-002
+    title: "Always include contracts/meta in latest_bundle.zip"
+    status: accepted
+    date: "2026-02-09"

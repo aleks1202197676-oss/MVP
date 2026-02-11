@@ -1,7 +1,9 @@
 # MVP Hub
 
 ## Download
-[![Download latest_bundle.zip](https://img.shields.io/badge/Download-latest__bundle.zip-2ea44f?style=for-the-badge)](https://github.com/<OWNER>/<REPO>/releases/tag/latest-bundle)
+[![Download latest_bundle.zip](https://img.shields.io/badge/Download-latest__bundle.zip-2ea44f?style=for-the-badge)](https://github.com/<OWNER>/<REPO>/releases/download/latest-bundle/latest_bundle.zip)
+
+<sub><a href="https://github.com/<OWNER>/<REPO>/releases/tag/latest-bundle">Open release page</a></sub>
 
 This is the latest generated bundle from main.
 

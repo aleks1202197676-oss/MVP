@@ -8,6 +8,7 @@ import yaml
 from core.compiled_memory import update_project_state, write_compiled_memory
 from core.llm_bundle import build_llm_bundle
 from core.run_registry import ensure_run_folders, new_run_id
+from pipelines.finance import run_finance_pipeline
 
 
 def load_cfg(path: str = "config/hub.yaml") -> dict:
@@ -53,6 +54,12 @@ def main() -> None:
         "pipelines/run_all.py",
         "START_HERE.md",
     ]
+
+    finance_enabled = bool(cfg.get("pipelines", {}).get("finance", {}).get("enabled", False))
+
+    if finance_enabled:
+        finance_report_path = run_finance_pipeline(cfg=cfg, run_id=run_id)
+        key_artifacts.append(str(finance_report_path))
 
     write_compiled_memory(run_id=run_id, key_artifacts=key_artifacts)
     update_project_state(run_id=run_id, key_artifacts=key_artifacts)

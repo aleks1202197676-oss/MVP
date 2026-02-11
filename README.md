@@ -1,5 +1,9 @@
 # MVP Hub
 
+## Download
+- One-click: https://github.com/aleks1202197676-oss/MVP/releases/download/latest-bundle/latest_bundle.zip
+- Fallback: https://github.com/aleks1202197676-oss/MVP/releases/tag/latest-bundle
+
 ## Быстрый старт
 ```bash
 python -m pip install -r requirements.txt

@@ -1,0 +1,36 @@
+meta:
+  name: finance_mvp_daily
+  version: 0.1.0
+inputs:
+  config:
+    file: config/finance_config.yml
+    fields:
+      - horizon_days
+      - start_date
+      - time_step
+      - allocation_policy
+      - allow_pay_ahead
+      - objective_mode
+      - price_mode
+  tables:
+    - data/raw/finance/cards.csv
+    - data/raw/finance/items.csv
+    - data/raw/finance/budget_daily.csv
+    - data/raw/finance/manual_payments.csv
+constraints:
+  - card_limit_respected
+  - debt_non_negative
+  - deadlines_tracking
+modes:
+  price_mode: [fixed, range, optimize_under_constraints]
+  allocation_policy: [fifo_deadline, highest_rate, highest_value]
+outputs:
+  - data/outputs/latest/finance/purchases_plan.csv
+  - data/outputs/latest/finance/payments_plan_daily.csv
+  - data/outputs/latest/finance/item_balance_daily.csv
+  - data/outputs/latest/finance/card_balance_daily.csv
+  - data/outputs/latest/finance/kpi_daily.csv
+  - data/outputs/latest/finance/violations.csv
+  - data/outputs/latest/finance/report.md
+  - data/outputs/latest/finance/payments_monthly.csv
+  - data/outputs/latest/finance/kpi_monthly.csv

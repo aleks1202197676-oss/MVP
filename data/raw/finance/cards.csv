@@ -1,0 +1,3 @@
+card_id,credit_limit,grace_days,apr_outside_grace,min_payment_rule,billing_day,notes
+card_alpha,150000,55,0.32,0.05,25,Основная карта
+card_beta,90000,45,0.28,0.04,15,Резерв

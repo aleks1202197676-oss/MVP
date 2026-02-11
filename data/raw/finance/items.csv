@@ -1,0 +1,4 @@
+item_id,name,price_value,price_min,price_max,value_score,priority,allowed_sources,purchase_date_mode,purchase_date_fixed,purchase_date_earliest,purchase_date_latest,split_allowed,installment_allowed,split_terms,installment_terms,item_deadline_override
+item_phone,Phone,82000,79000,85000,90,1,"card_alpha,card_beta,installment",optimize,,2026-01-05,2026-02-10,false,true,,6,
+item_course,Course,30000,28000,32000,70,2,"card_beta,cash,split",fixed,2026-01-20,2026-01-10,2026-02-15,true,false,3,,
+item_tablet,Tablet,45000,43000,47000,75,3,"card_alpha,split",optimize,,2026-02-01,2026-03-01,true,false,4,,2026-04-15

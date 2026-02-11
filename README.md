@@ -9,6 +9,7 @@
 
 ## Быстрый старт
 1) Открой папку `00__CLICK_HERE` и запусти `00__RUN_ALL.cmd`
+   - CLI: `python -m pipelines.run_all`
 2) Открой `data/outputs/latest` и смотри результаты
 3) Если хочешь прогнать только одну подсистему:
    - `python -m pipelines.health.import_samsung_health`

@@ -1,0 +1,14 @@
+horizon_days: 120
+start_date: "2026-01-01"
+time_step: "day"
+allocation_policy: "fifo_deadline"
+allow_pay_ahead: true
+objective_mode:
+  levels:
+    - solvency
+    - minimize_interest
+  weights:
+    solvency: 1.0
+    minimize_interest: 0.7
+    maximize_value: 0.2
+price_mode: "range"

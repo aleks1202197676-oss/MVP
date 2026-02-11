@@ -1,0 +1,34 @@
+# Главный конфиг Unified Hub
+hub:
+  timezone: "Europe/Moscow"
+  run_id_format: "%Y%m%d_%H%M%S"
+  output_root: "data/outputs"
+  db:
+    kind: "duckdb"
+    path: "data/mart/hub.duckdb"
+
+pipelines:
+  avito:
+    enabled: false
+  health:
+    enabled: false
+  models:
+    enabled: false
+  finance:
+    enabled: true
+    inputs:
+      finance_config: "config/finance_config.yml"
+      data_root: "data/raw/finance"
+    outputs:
+      latest_folder: "data/outputs/latest/finance"
+
+llm_bundle:
+  enabled: true
+  max_files: 200
+  include_globs:
+    - "data/outputs/latest/**"
+    - "contracts/finance/**"
+    - "config/finance_config.yml"
+  exclude_globs:
+    - "**/*.parquet"
+    - "**/*.duckdb"

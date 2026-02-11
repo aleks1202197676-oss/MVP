@@ -1,0 +1,54 @@
+name: Unified Hub CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  e2e-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unified pipeline
+        run: python -m pipelines.run_all
+
+      - name: Validate required artifacts
+        run: |
+          set -euo pipefail
+          test -f data/ai_contract/latest/run_manifest.json
+          test -f data/ai_contract/latest/latest_bundle.zip
+          test -d data/outputs/latest/finance
+          test -f data/outputs/latest/finance/report.md
+          test -f data/outputs/latest/finance/payments_plan_daily.csv
+          test -f data/outputs/latest/finance/purchases_plan.csv
+          test -f data/outputs/latest/finance/violations.csv
+          ls -la data/ai_contract/latest
+          ls -la data/outputs/latest/finance
+
+      - name: Upload latest artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hub-latest
+          path: |
+            data/ai_contract/latest/run_manifest.json
+            data/ai_contract/latest/latest_bundle.zip
+            data/outputs/latest/finance/report.md
+          if-no-files-found: warn

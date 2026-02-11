@@ -43,5 +43,6 @@ bundle:
     - "pipelines/**/*.py"
     - "requirements.txt"
     - "run_manifest.json"
+    - "memory_pack/**"
   include_when_finance_enabled:
     - "data/outputs/latest/finance/**"

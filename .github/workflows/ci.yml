@@ -42,6 +42,7 @@ jobs:
               'contracts/meta/project_state.yml',
               'contracts/meta/COMPILED_MEMORY.md',
               'pipelines/run_all.py',
+              'memory_pack/handoff.md',
           ]
 
           with ZipFile(bundle_path) as bundle:

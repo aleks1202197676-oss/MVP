@@ -1,0 +1,3 @@
+card_id,credit_limit,apr,min_payment_rate,cycle_day,due_day
+CARD_A,300000,0.27,0.05,25,10
+CARD_B,200000,0.24,0.04,20,15

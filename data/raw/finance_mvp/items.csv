@@ -1,0 +1,5 @@
+purchase_date,card_id,category,amount,priority
+2026-01-05,CARD_A,groceries,12000,essential
+2026-01-12,CARD_B,transport,4500,normal
+2026-01-28,CARD_A,electronics,30000,low
+2026-02-03,CARD_B,utilities,7000,essential

@@ -1,48 +1,54 @@
 hub:
-  timezone: "Europe/Moscow"
-  run_id_format: "%Y%m%d_%H%M%S"
-  output_root: "data/outputs"
-
+  timezone: Europe/Moscow
+  run_id_format: '%Y%m%d_%H%M%S'
+  output_root: data/outputs
 pipelines:
   finance:
     enabled: false
     purchase_window:
-      start_date: "2026-01-10"
-      end_date: "2026-01-19"
+      start_date: '2026-01-10'
+      end_date: '2026-01-19'
     model:
       investment_amount: 100000
       holding_days: 30
       expected_daily_return: 0.0007
       daily_volatility: 0.01
       weekday_adjustments:
-        "0": 0.0002
-        "1": 0.0001
-        "2": 0.0000
-        "3": -0.0001
-        "4": -0.0002
-        "5": -0.0003
-        "6": 0.0003
+        '0': 0.0002
+        '1': 0.0001
+        '2': 0.0
+        '3': -0.0001
+        '4': -0.0002
+        '5': -0.0003
+        '6': 0.0003
       monthly_adjustments:
-        "1": 0.0002
-        "2": 0.0001
-        "3": 0.0000
-        "4": -0.0001
+        '1': 0.0002
+        '2': 0.0001
+        '3': 0.0
+        '4': -0.0001
     outputs:
-      latest_folder: "data/outputs/latest/finance"
-
+      latest_folder: data/outputs/latest/finance
+  finance_mvp:
+    enabled: false
+    input_root: data/raw/finance_mvp
+    outputs:
+      latest_folder: outputs/latest/finance_mvp
 bundle:
   enabled: true
-  output_path: "data/ai_contract/latest/latest_bundle.zip"
+  output_path: data/ai_contract/latest/latest_bundle.zip
   include_globs:
-    - "contracts/meta/**"
-    - "contracts/finance/**"
-    - "config/**"
-    - "README.md"
-    - "START_HERE.md"
-    - "core/**/*.py"
-    - "pipelines/**/*.py"
-    - "requirements.txt"
-    - "run_manifest.json"
-    - "memory_pack/**"
+  - contracts/meta/**
+  - contracts/finance/**
+  - contracts/finance_mvp/**
+  - config/**
+  - README.md
+  - START_HERE.md
+  - core/**/*.py
+  - pipelines/**/*.py
+  - requirements.txt
+  - run_manifest.json
+  - memory_pack/**
   include_when_finance_enabled:
-    - "data/outputs/latest/finance/**"
+  - data/outputs/latest/finance/**
+  include_when_finance_mvp_enabled:
+  - outputs/latest/finance_mvp/**

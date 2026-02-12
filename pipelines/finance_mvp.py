@@ -97,6 +97,174 @@ def _write_csv(path: Path, headers: list[str], rows: list[dict[str, str]]) -> No
         writer.writerows(rows)
 
 
+def _build_flying_logic_rows(
+    cards: dict[str, Card],
+    items: list[PurchaseItem],
+    monthly_rows: list[dict[str, str]],
+    kpi_rows: list[dict[str, str]],
+    budget: dict[str, BudgetMonth],
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    card_paid: dict[str, float] = {}
+    card_interest: dict[str, float] = {}
+    for row in monthly_rows:
+        card_id = row["card_id"]
+        statement_balance = float(row["statement_balance"])
+        planned_payment = float(row["planned_payment"])
+        card_paid[card_id] = card_paid.get(card_id, 0.0) + planned_payment
+        monthly_interest = statement_balance * (cards[card_id].apr / 12.0)
+        card_interest[card_id] = card_interest.get(card_id, 0.0) + monthly_interest
+
+    total_paid = sum(card_paid.values())
+    total_interest = sum(card_interest.values())
+    items_purchased = len(items)
+    available_budget = sum(
+        max(0.0, month.income - month.fixed_expenses - month.target_savings) for _, month in sorted(budget.items())
+    )
+
+    nodes: list[dict[str, str]] = []
+    for card_id in sorted(cards.keys()):
+        card = cards[card_id]
+        nodes.append(
+            {
+                "node_id": f"card:{card_id}",
+                "label": card_id,
+                "type": "card",
+                "group": "cards",
+                "weight": f"{card.credit_limit:.2f}",
+                "note": f"apr={card.apr:.4f};min_payment_rate={card.min_payment_rate:.4f}",
+            }
+        )
+
+    for index, item in enumerate(items, start=1):
+        nodes.append(
+            {
+                "node_id": f"item:{index:04d}",
+                "label": f"{item.category}:{item.purchase_date.isoformat()}",
+                "type": "item",
+                "group": "items",
+                "weight": f"{item.amount:.2f}",
+                "note": f"card_id={item.card_id};priority={item.priority}",
+            }
+        )
+
+    for month_row in sorted(kpi_rows, key=lambda row: row["month"]):
+        month = month_row["month"]
+        nodes.append(
+            {
+                "node_id": f"kpi:ending_debt:{month}",
+                "label": f"ending_debt_{month}",
+                "type": "kpi",
+                "group": "kpi_timeseries",
+                "weight": f"{float(month_row['ending_debt']):.2f}",
+                "note": "monthly ending debt",
+            }
+        )
+
+    nodes.extend(
+        [
+            {
+                "node_id": "kpi:items_purchased",
+                "label": "items_purchased",
+                "type": "kpi",
+                "group": "kpi_summary",
+                "weight": str(items_purchased),
+                "note": "count of purchase items",
+            },
+            {
+                "node_id": "kpi:total_paid",
+                "label": "total_paid",
+                "type": "kpi",
+                "group": "kpi_summary",
+                "weight": f"{total_paid:.2f}",
+                "note": "sum(planned_payment)",
+            },
+            {
+                "node_id": "kpi:total_interest",
+                "label": "total_interest",
+                "type": "kpi",
+                "group": "kpi_summary",
+                "weight": f"{total_interest:.2f}",
+                "note": "sum(statement_balance * apr/12)",
+            },
+            {
+                "node_id": "kpi:available_budget",
+                "label": "available_budget",
+                "type": "kpi",
+                "group": "kpi_summary",
+                "weight": f"{available_budget:.2f}",
+                "note": "sum(max(0, income-fixed_expenses-target_savings))",
+            },
+        ]
+    )
+    nodes = sorted(nodes, key=lambda row: row["node_id"])
+
+    edges: list[dict[str, str]] = []
+    for index, item in enumerate(items, start=1):
+        edges.append(
+            {
+                "from_id": f"item:{index:04d}",
+                "to_id": f"card:{item.card_id}",
+                "relation": "funded_by",
+                "weight": f"{item.amount:.2f}",
+                "note": f"purchase_date={item.purchase_date.isoformat()}",
+            }
+        )
+        edges.append(
+            {
+                "from_id": f"item:{index:04d}",
+                "to_id": "kpi:items_purchased",
+                "relation": "contributes_to",
+                "weight": "1.00",
+                "note": "one purchased item",
+            }
+        )
+
+    for card_id in sorted(cards.keys()):
+        edges.append(
+            {
+                "from_id": f"card:{card_id}",
+                "to_id": "kpi:total_paid",
+                "relation": "contributes_to",
+                "weight": f"{card_paid.get(card_id, 0.0):.2f}",
+                "note": "sum planned payment for card",
+            }
+        )
+        edges.append(
+            {
+                "from_id": f"card:{card_id}",
+                "to_id": "kpi:total_interest",
+                "relation": "contributes_to",
+                "weight": f"{card_interest.get(card_id, 0.0):.2f}",
+                "note": "estimated monthly interest contribution",
+            }
+        )
+
+    edges.append(
+        {
+            "from_id": "kpi:available_budget",
+            "to_id": "kpi:total_paid",
+            "relation": "constrained_by",
+            "weight": f"{available_budget:.2f}",
+            "note": "payments limited by available budget",
+        }
+    )
+
+    for month_row in sorted(kpi_rows, key=lambda row: row["month"]):
+        month = month_row["month"]
+        edges.append(
+            {
+                "from_id": "kpi:total_interest",
+                "to_id": f"kpi:ending_debt:{month}",
+                "relation": "contributes_to",
+                "weight": f"{float(month_row['ending_debt']):.2f}",
+                "note": "ending debt level for month",
+            }
+        )
+
+    edges = sorted(edges, key=lambda row: (row["from_id"], row["to_id"], row["relation"], row["note"]))
+    return nodes, edges
+
+
 def _due_date_for_month(month: str, due_day: int) -> str:
     yyyy, mm = month.split("-")
     clamped_day = max(1, min(28, due_day))
@@ -205,6 +373,24 @@ def run_finance_mvp_pipeline(cfg: dict, run_id: str) -> Path:
         output_root / "kpi_timeseries.csv",
         ["month", "purchase_total", "payment_total", "ending_debt", "utilization_ratio"],
         kpi_rows,
+    )
+
+    flying_nodes, flying_edges = _build_flying_logic_rows(
+        cards=cards,
+        items=items,
+        monthly_rows=monthly_rows,
+        kpi_rows=kpi_rows,
+        budget=budget,
+    )
+    _write_csv(
+        output_root / "flying_logic" / "nodes.csv",
+        ["node_id", "label", "type", "group", "weight", "note"],
+        flying_nodes,
+    )
+    _write_csv(
+        output_root / "flying_logic" / "edges.csv",
+        ["from_id", "to_id", "relation", "weight", "note"],
+        flying_edges,
     )
 
     total_purchase = sum(item.amount for item in items)

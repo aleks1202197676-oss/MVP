@@ -9,6 +9,7 @@ from core.compiled_memory import update_project_state, write_compiled_memory
 from core.llm_bundle import build_llm_bundle
 from core.run_registry import ensure_run_folders, new_run_id
 from pipelines.finance import run_finance_pipeline
+from pipelines.finance_mvp import run_finance_mvp_pipeline
 
 
 def load_cfg(path: str = "config/hub.yaml") -> dict:
@@ -33,6 +34,9 @@ def _bundle_include_globs(cfg: dict) -> list[str]:
     finance_enabled = bool(cfg.get("pipelines", {}).get("finance", {}).get("enabled", False))
     if finance_enabled:
         include.extend(bundle_cfg.get("include_when_finance_enabled", []))
+    finance_mvp_enabled = bool(cfg.get("pipelines", {}).get("finance_mvp", {}).get("enabled", False))
+    if finance_mvp_enabled:
+        include.extend(bundle_cfg.get("include_when_finance_mvp_enabled", []))
     return include
 
 
@@ -56,10 +60,15 @@ def main() -> None:
     ]
 
     finance_enabled = bool(cfg.get("pipelines", {}).get("finance", {}).get("enabled", False))
+    finance_mvp_enabled = bool(cfg.get("pipelines", {}).get("finance_mvp", {}).get("enabled", False))
 
     if finance_enabled:
         finance_report_path = run_finance_pipeline(cfg=cfg, run_id=run_id)
         key_artifacts.append(str(finance_report_path))
+
+    if finance_mvp_enabled:
+        finance_mvp_report_path = run_finance_mvp_pipeline(cfg=cfg, run_id=run_id)
+        key_artifacts.append(str(finance_mvp_report_path))
 
     write_compiled_memory(run_id=run_id, key_artifacts=key_artifacts)
     update_project_state(run_id=run_id, key_artifacts=key_artifacts)

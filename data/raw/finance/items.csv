@@ -1,0 +1,5 @@
+item_id,card_id,purchase_date,amount,category
+I001,CARD_A,2026-01-10,1200.00,grocery
+I002,CARD_B,2026-01-15,800.00,electronics
+I003,CARD_A,2026-02-01,400.00,transport
+I004,CARD_B,2026-02-11,950.00,home

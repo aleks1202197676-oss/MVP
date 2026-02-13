@@ -36,7 +36,7 @@ class Task:
     repo: str
     base_branch: str
     branch_name: str
-    patch_file: str
+    patch_files: list[str]
     commands: list[str]
     allowlist_globs: list[str]
     pr_title: str
@@ -50,7 +50,6 @@ REQUIRED_FIELDS = {
     "repo",
     "base_branch",
     "branch_name",
-    "patch_file",
     "commands",
     "allowlist_globs",
     "pr_title",
@@ -93,6 +92,23 @@ def save_processed(processed: set[str]) -> None:
     STATE_FILE.write_text(json.dumps({"processed": sorted(processed)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def parse_patch_files(payload: dict) -> list[str]:
+    patches = payload.get("patches")
+    patch_file = payload.get("patch_file")
+
+    if patches is not None:
+        if not isinstance(patches, list) or not patches or not all(isinstance(p, str) for p in patches):
+            raise OperatorError("patches must be non-empty list[str]")
+        return patches
+
+    if patch_file is not None:
+        if not isinstance(patch_file, str) or not patch_file.strip():
+            raise OperatorError("patch_file must be non-empty string")
+        return [patch_file]
+
+    raise OperatorError("Task must include either 'patches' or 'patch_file'")
+
+
 def parse_task(path: Path) -> Task:
     payload = json.loads(path.read_text(encoding="utf-8"))
     missing = REQUIRED_FIELDS - set(payload)
@@ -102,12 +118,24 @@ def parse_task(path: Path) -> Task:
         raise OperatorError("commands must be list[str]")
     if not isinstance(payload["allowlist_globs"], list) or not all(isinstance(x, str) for x in payload["allowlist_globs"]):
         raise OperatorError("allowlist_globs must be list[str]")
+
     raw_mode = payload.get("mode", "auto")
     if raw_mode not in {"auto", "gh", "push_only"}:
         raise OperatorError("mode must be one of: auto, gh, push_only")
 
-    payload["mode"] = raw_mode
-    return Task(source_file=path, **payload)
+    return Task(
+        task_id=payload["task_id"],
+        repo=payload["repo"],
+        base_branch=payload["base_branch"],
+        branch_name=payload["branch_name"],
+        patch_files=parse_patch_files(payload),
+        commands=payload["commands"],
+        allowlist_globs=payload["allowlist_globs"],
+        pr_title=payload["pr_title"],
+        pr_body=payload["pr_body"],
+        mode=raw_mode,
+        source_file=path,
+    )
 
 
 def is_gh_ready() -> bool:
@@ -162,27 +190,37 @@ def ensure_clean_tree() -> None:
         raise OperatorError("Working tree is not clean. Commit/stash changes before running operator.")
 
 
+def resolve_patch_paths(task: Task) -> list[Path]:
+    resolved: list[Path] = []
+    for patch_file in task.patch_files:
+        patch_path = (ROOT / patch_file).resolve()
+        if not patch_path.exists() or not patch_path.is_file():
+            raise OperatorError(f"Patch file not found: {patch_file}")
+        if not str(patch_path).startswith(str(PATCHES_DIR.resolve())):
+            raise OperatorError("patches/patch_file must be under tools/operator/queue/patches/")
+        resolved.append(patch_path)
+    return resolved
+
+
+def apply_and_validate_patches(task: Task, patch_paths: list[Path]) -> None:
+    for patch_path in patch_paths:
+        touched_from_patch = read_patch_touched_files(patch_path)
+        enforce_allowlist(touched_from_patch, task.allowlist_globs, DEFAULT_DENY_GLOBS)
+        run(["git", "apply", "--3way", "--index", str(patch_path)])
+
+    staged = run(["git", "diff", "--cached", "--name-only"]).stdout.splitlines()
+    enforce_allowlist(staged, task.allowlist_globs, DEFAULT_DENY_GLOBS)
+
+
 def process_task(task: Task) -> dict:
-    patch_path = (ROOT / task.patch_file).resolve()
-    if not patch_path.exists() or not patch_path.is_file():
-        raise OperatorError(f"Patch file not found: {task.patch_file}")
-    if not str(patch_path).startswith(str(PATCHES_DIR.resolve())):
-        raise OperatorError("patch_file must be under tools/operator/queue/patches/")
-
-    touched_from_patch = read_patch_touched_files(patch_path)
-    enforce_allowlist(touched_from_patch, task.allowlist_globs, DEFAULT_DENY_GLOBS)
-
+    patch_paths = resolve_patch_paths(task)
     ensure_clean_tree()
-
     mode = resolve_mode(task.mode)
 
     run(["git", "checkout", task.base_branch])
     run(["git", "checkout", "-B", task.branch_name, task.base_branch])
 
-    run(["git", "apply", "--3way", "--index", str(patch_path)])
-
-    staged = run(["git", "diff", "--cached", "--name-only"]).stdout.splitlines()
-    enforce_allowlist(staged, task.allowlist_globs, DEFAULT_DENY_GLOBS)
+    apply_and_validate_patches(task, patch_paths)
 
     command_logs: list[dict] = []
     for cmd in task.commands:
@@ -240,6 +278,7 @@ def process_task(task: Task) -> dict:
         "next_action": next_action,
         "status": "success",
         "commands": command_logs,
+        "patches": task.patch_files,
     }
 
 
@@ -249,11 +288,38 @@ def archive_task(task: Task, suffix: str) -> None:
     task.source_file.replace(target)
 
 
+def build_task_template() -> dict:
+    return {
+        "task_id": "web-2026-02-13-001",
+        "repo": "owner/repo",
+        "base_branch": "main",
+        "branch_name": "operator/web-2026-02-13-001",
+        "patches": [
+            "tools/operator/queue/patches/web-2026-02-13-001.patch"
+        ],
+        "commands": [
+            "python -m py_compile tools/operator/operator.py"
+        ],
+        "allowlist_globs": [
+            "tools/operator/**",
+            "docs/**"
+        ],
+        "pr_title": "Operator task web-2026-02-13-001",
+        "pr_body": "Automated patch apply",
+        "mode": "auto",
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Local gh-based operator")
     parser.add_argument("--once", action="store_true", help="Process queue once and exit")
     parser.add_argument("--poll-interval", type=float, default=5.0, help="Queue poll interval in seconds")
+    parser.add_argument("--print-task-template", action="store_true", help="Print JSON task template for manual web->queue flow")
     args = parser.parse_args()
+
+    if args.print_task_template:
+        print(json.dumps(build_task_template(), ensure_ascii=False, indent=2))
+        return 0
 
     for d in [INBOX_DIR, PATCHES_DIR, ARCHIVE_DIR, LOGS_DIR]:
         d.mkdir(parents=True, exist_ok=True)

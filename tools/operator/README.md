@@ -32,6 +32,12 @@ python -m tools.operator.operator
 python -m tools.operator.operator --once
 ```
 
+Печать шаблона задачи (web → queue):
+
+```bash
+python -m tools.operator.operator --print-task-template
+```
+
 Windows:
 
 ```cmd
@@ -40,7 +46,7 @@ tools\operator\START_OPERATOR.cmd
 
 ## Формат задачи
 
-Сохраните JSON в `tools/operator/queue/inbox/<task>.json`:
+Рекомендуемый формат (массив `patches`):
 
 ```json
 {
@@ -48,9 +54,11 @@ tools\operator\START_OPERATOR.cmd
   "repo": "owner/repo",
   "base_branch": "main",
   "branch_name": "operator/task-001",
-  "patch_file": "tools/operator/queue/patches/task-001.patch",
+  "patches": [
+    "tools/operator/queue/patches/task-001.patch"
+  ],
   "commands": [
-    "python -m pytest -q"
+    "python -m py_compile tools/operator/operator.py"
   ],
   "allowlist_globs": [
     "tools/operator/**",
@@ -62,17 +70,34 @@ tools\operator\START_OPERATOR.cmd
 }
 ```
 
+Совместимость: одиночное поле `patch_file` тоже поддерживается.
+
+## Web → operator queue за 60 секунд
+
+1. Сгенерируйте заготовку:
+   ```bash
+   python -m tools.operator.operator --print-task-template
+   ```
+2. Вставьте JSON в файл `tools/operator/queue/inbox/<task_id>.json`.
+3. Положите patch-файл(ы) в `tools/operator/queue/patches/`.
+4. Проверьте `allowlist_globs` (только разрешённые пути).
+5. Запустите оператор:
+   ```bash
+   python -m tools.operator.operator --once
+   ```
+6. Если `gh` недоступен, оператор автоматически уйдёт в `push_only` и запишет `compare_url` + `next_action` в `tools/operator/logs/operator_events.jsonl`.
+
 ## Безопасность
 
 - По умолчанию запрещены изменения в `.github/workflows/**`.
 - Любой путь в патче и staged-изменениях должен соответствовать `allowlist_globs`.
-- Патч должен находиться строго в `tools/operator/queue/patches/`.
+- Все patch-файлы должны находиться строго в `tools/operator/queue/patches/`.
 
 ## Поведение
 
 1. Проверяет `tools/operator/STOP`; если файл существует — безопасно завершает работу.
 2. Создает/пересоздает рабочую ветку от `base_branch`.
-3. Применяет патч через `git apply --3way --index`.
+3. Применяет patch-файлы через `git apply --3way --index`.
 4. Запускает команды в порядке из `commands`.
 5. Делает commit/push.
 6. Режимы публикации:

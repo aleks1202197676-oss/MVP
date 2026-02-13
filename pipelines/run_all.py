@@ -17,6 +17,18 @@ def load_cfg(path: str = "config/hub.yaml") -> dict:
         return yaml.safe_load(file)
 
 
+def apply_project_state_overrides(cfg: dict, state_path: str = "contracts/meta/project_state.yml") -> dict:
+    path = Path(state_path)
+    if not path.exists():
+        return cfg
+
+    state = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    override_enabled = state.get("pipelines", {}).get("finance_mvp", {}).get("enabled")
+    if isinstance(override_enabled, bool):
+        cfg.setdefault("pipelines", {}).setdefault("finance_mvp", {})["enabled"] = override_enabled
+    return cfg
+
+
 def build_manifest(run_id: str, bundle_path: str, key_artifacts: list[str]) -> str:
     manifest_path = Path("run_manifest.json")
     payload = {
@@ -42,6 +54,7 @@ def _bundle_include_globs(cfg: dict) -> list[str]:
 
 def main() -> None:
     cfg = load_cfg()
+    cfg = apply_project_state_overrides(cfg)
     run_id = new_run_id(cfg["hub"]["run_id_format"])
     ensure_run_folders(cfg["hub"]["output_root"], run_id)
 

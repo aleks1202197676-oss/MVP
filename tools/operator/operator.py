@@ -41,6 +41,7 @@ class Task:
     allowlist_globs: list[str]
     pr_title: str
     pr_body: str
+    mode: str
     source_file: Path
 
 
@@ -101,7 +102,30 @@ def parse_task(path: Path) -> Task:
         raise OperatorError("commands must be list[str]")
     if not isinstance(payload["allowlist_globs"], list) or not all(isinstance(x, str) for x in payload["allowlist_globs"]):
         raise OperatorError("allowlist_globs must be list[str]")
+    raw_mode = payload.get("mode", "auto")
+    if raw_mode not in {"auto", "gh", "push_only"}:
+        raise OperatorError("mode must be one of: auto, gh, push_only")
+
+    payload["mode"] = raw_mode
     return Task(source_file=path, **payload)
+
+
+def is_gh_ready() -> bool:
+    gh_bin = run(["bash", "-lc", "command -v gh"], check=False)
+    if gh_bin.returncode != 0:
+        return False
+    auth = run(["gh", "auth", "status"], check=False)
+    return auth.returncode == 0
+
+
+def resolve_mode(task_mode: str) -> str:
+    if task_mode == "auto":
+        return "gh" if is_gh_ready() else "push_only"
+    return task_mode
+
+
+def build_compare_url(task: Task) -> str:
+    return f"https://github.com/{task.repo}/compare/{task.base_branch}...{task.branch_name}?expand=1"
 
 
 def read_patch_touched_files(patch_path: Path) -> list[str]:
@@ -150,6 +174,8 @@ def process_task(task: Task) -> dict:
 
     ensure_clean_tree()
 
+    mode = resolve_mode(task.mode)
+
     run(["git", "checkout", task.base_branch])
     run(["git", "checkout", "-B", task.branch_name, task.base_branch])
 
@@ -176,29 +202,42 @@ def process_task(task: Task) -> dict:
     commit_hash = run(["git", "rev-parse", "HEAD"]).stdout.strip()
     run(["git", "push", "-u", "origin", task.branch_name])
 
-    pr_create = run(
-        [
-            "gh",
-            "pr",
-            "create",
-            "--base",
-            task.base_branch,
-            "--head",
-            task.branch_name,
-            "--title",
-            task.pr_title,
-            "--body",
-            task.pr_body,
-        ]
-    )
-    pr_url = pr_create.stdout.strip().splitlines()[-1] if pr_create.stdout.strip() else ""
+    next_action = ""
+    pr_url = ""
+    compare_url = build_compare_url(task)
 
-    run(["gh", "pr", "merge", task.branch_name, "--auto", "--squash", "--delete-branch"])
+    if mode == "gh":
+        pr_create = run(
+            [
+                "gh",
+                "pr",
+                "create",
+                "--base",
+                task.base_branch,
+                "--head",
+                task.branch_name,
+                "--title",
+                task.pr_title,
+                "--body",
+                task.pr_body,
+            ]
+        )
+        pr_url = pr_create.stdout.strip().splitlines()[-1] if pr_create.stdout.strip() else ""
+        run(["gh", "pr", "merge", task.branch_name, "--auto", "--squash", "--delete-branch"])
+        next_action = "PR created via gh and auto-merge enabled"
+    else:
+        next_action = (
+            "Open compare URL and create PR manually. "
+            "Optional: use GitHub Desktop (Current Branch -> Create Pull Request)."
+        )
 
     return {
         "task_id": task.task_id,
         "commit_hash": commit_hash,
         "pr_url": pr_url,
+        "compare_url": compare_url,
+        "mode": mode,
+        "next_action": next_action,
         "status": "success",
         "commands": command_logs,
     }

@@ -6,7 +6,7 @@
 
 - `git`
 - `python` 3.10+
-- `gh` (GitHub CLI) с выполненным `gh auth login`
+- `gh` (GitHub CLI) + `gh auth login` **опционально** (только для `mode=gh` и авто-режима с PR через CLI)
 
 ## Структура
 
@@ -57,7 +57,8 @@ tools\operator\START_OPERATOR.cmd
     "docs/**"
   ],
   "pr_title": "Operator task-001",
-  "pr_body": "Automated patch apply"
+  "pr_body": "Automated patch apply",
+  "mode": "auto"
 }
 ```
 
@@ -73,8 +74,11 @@ tools\operator\START_OPERATOR.cmd
 2. Создает/пересоздает рабочую ветку от `base_branch`.
 3. Применяет патч через `git apply --3way --index`.
 4. Запускает команды в порядке из `commands`.
-5. Делает commit/push, создает PR через `gh pr create`.
-6. Включает `gh pr merge --auto --squash --delete-branch` (ожидание green required checks).
+5. Делает commit/push.
+6. Режимы публикации:
+   - `mode=gh`: создает PR через `gh pr create` и включает `gh pr merge --auto --squash --delete-branch`.
+   - `mode=push_only`: только push ветки, записывает `compare_url` и безопасные следующие шаги для ручного PR.
+   - `mode=auto` (по умолчанию): если `gh` установлен и авторизован — ведет себя как `gh`, иначе как `push_only`.
 
 ## Экстренная остановка
 

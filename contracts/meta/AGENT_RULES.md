@@ -1,6 +1,7 @@
 # AGENT_RULES
 
-- Всегда начинать с `contracts/meta/project_state.yml` и `contracts/meta/COMPILED_MEMORY.md`.
-- Сохранять детерминированность: стабильный порядок файлов и секций.
-- После успешного прогона обновлять `project_state.yml` и `COMPILED_MEMORY.*`.
-- Собирать `latest_bundle.zip` как переносимый контекст: память + ключевой код.
+- Portable source of truth: `latest_bundle.zip`; active source during work: repository checkout.
+- Mandatory order: PREFLIGHT -> IMPLEMENT -> VERIFY.
+- Track discipline is required: `PR-A*`, `PR-F*`, `PR-G*` with deny-first behavior.
+- Keep patches minimal, deterministic, and placeholder-free.
+- Prefer operator-first workflow when applicable.

@@ -48,6 +48,11 @@ bundle:
   - requirements.txt
   - run_manifest.json
   - memory_pack/**
+  - AGENTS.md
+  - .agents/**
+  - skills/**
+  - tools/operator/**
+  - tools/ci/**
   include_when_finance_enabled:
   - data/outputs/latest/finance/**
   include_when_finance_mvp_enabled:

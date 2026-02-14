@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   minimal-ci:
@@ -69,3 +77,61 @@ jobs:
           status="${deps_status:-unknown}"
           echo "### Dependency installation" >> "$GITHUB_STEP_SUMMARY"
           echo "Result: ${status}." >> "$GITHUB_STEP_SUMMARY"
+
+  refresh-latest-bundle:
+    name: refresh-latest-bundle
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 30 -r requirements.txt
+
+      - name: Build latest bundle
+        run: python -m pipelines.run_all
+
+      - name: Verify bundle exists
+        run: test -f data/ai_contract/latest/latest_bundle.zip
+
+      - name: Upload latest bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest_bundle
+          path: data/ai_contract/latest/latest_bundle.zip
+          if-no-files-found: error
+
+      - name: Publish latest-bundle release asset (retry)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for attempt in 1 2 3; do
+            if gh release view latest-bundle >/dev/null 2>&1 || \
+              gh release create latest-bundle \
+                --title "latest-bundle" \
+                --notes "Auto-updated latest bundle"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Release prepare failed after $attempt attempts"
+              exit 1
+            fi
+            sleep 5
+          done
+
+          for attempt in 1 2 3; do
+            if gh release upload latest-bundle data/ai_contract/latest/latest_bundle.zip#latest_bundle.zip --clobber; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Release upload failed after $attempt attempts"
+              exit 1
+            fi
+            sleep 5
+          done

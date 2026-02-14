@@ -9,6 +9,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: pr-branch-updater
+  cancel-in-progress: false
+
 jobs:
   auto-update:
     runs-on: ubuntu-latest
@@ -23,12 +27,22 @@ jobs:
             const counts = {
               scanned: 0,
               eligible: 0,
+              behind: 0,
               updated: 0,
-              skipped: 0,
-              errors: 0,
+              skippedDirty: 0,
+              skippedBlocked: 0,
+              skippedDraft: 0,
+              skippedNotOptIn: 0,
+              warnings: 0,
             };
 
             const warnings = [];
+
+            const addWarning = (message) => {
+              counts.warnings += 1;
+              warnings.push(message);
+              core.warning(message);
+            };
 
             const isOptIn = (pr) => {
               return (
@@ -64,76 +78,94 @@ jobs:
               }
             `;
 
-            let after = null;
-            let hasNextPage = true;
+            try {
+              let after = null;
+              let hasNextPage = true;
 
-            while (hasNextPage) {
-              let prNodes = [];
-              try {
-                const result = await github.graphql(query, { owner, repo, after });
-                const pullRequests = result?.repository?.pullRequests;
-                prNodes = pullRequests?.nodes || [];
-                hasNextPage = Boolean(pullRequests?.pageInfo?.hasNextPage);
-                after = pullRequests?.pageInfo?.endCursor || null;
-              } catch (error) {
-                counts.errors += 1;
-                warnings.push(`GraphQL list error: ${error.message}`);
-                core.warning(`GraphQL list error: ${error.message}`);
-                break;
-              }
-
-              for (const pr of prNodes) {
-                counts.scanned += 1;
-
-                if (pr.isDraft) {
-                  counts.skipped += 1;
-                  continue;
+              while (hasNextPage) {
+                let prNodes = [];
+                try {
+                  const result = await github.graphql(query, { owner, repo, after });
+                  const pullRequests = result?.repository?.pullRequests;
+                  prNodes = pullRequests?.nodes || [];
+                  hasNextPage = Boolean(pullRequests?.pageInfo?.hasNextPage);
+                  after = pullRequests?.pageInfo?.endCursor || null;
+                } catch (error) {
+                  addWarning(`GraphQL list error: ${error.message}`);
+                  break;
                 }
 
-                if (!isOptIn(pr)) {
-                  counts.skipped += 1;
-                  continue;
-                }
+                for (const pr of prNodes) {
+                  counts.scanned += 1;
 
-                counts.eligible += 1;
-
-                if (pr.mergeStateStatus === 'BEHIND') {
-                  try {
-                    await github.rest.pulls.updateBranch({
-                      owner,
-                      repo,
-                      pull_number: pr.number,
-                    });
-                    counts.updated += 1;
-                  } catch (error) {
-                    counts.errors += 1;
-                    warnings.push(`PR #${pr.number} update error: ${error.message}`);
-                    core.warning(`PR #${pr.number} update error: ${error.message}`);
+                  if (pr.isDraft) {
+                    counts.skippedDraft += 1;
+                    continue;
                   }
-                  continue;
-                }
 
-                if (pr.mergeStateStatus === 'DIRTY' || pr.mergeStateStatus === 'BLOCKED') {
-                  counts.skipped += 1;
-                  continue;
-                }
+                  if (!isOptIn(pr)) {
+                    counts.skippedNotOptIn += 1;
+                    continue;
+                  }
 
-                counts.skipped += 1;
+                  counts.eligible += 1;
+
+                  if (pr.mergeStateStatus === 'BEHIND') {
+                    counts.behind += 1;
+                    try {
+                      await github.rest.pulls.updateBranch({
+                        owner,
+                        repo,
+                        pull_number: pr.number,
+                      });
+                      counts.updated += 1;
+                    } catch (error) {
+                      addWarning(`PR #${pr.number} update error: ${error.message}`);
+                    }
+                    continue;
+                  }
+
+                  if (pr.mergeStateStatus === 'DIRTY') {
+                    counts.skippedDirty += 1;
+                    continue;
+                  }
+
+                  if (pr.mergeStateStatus === 'BLOCKED') {
+                    counts.skippedBlocked += 1;
+                    continue;
+                  }
+                }
               }
+            } catch (error) {
+              addWarning(`Unexpected workflow script error: ${error.message}`);
             }
 
-            await core.summary
-              .addHeading('Auto-update PR branches summary')
-              .addTable([
-                [{ data: 'Metric', header: true }, { data: 'Count', header: true }],
-                ['scanned', String(counts.scanned)],
-                ['eligible', String(counts.eligible)],
-                ['updated', String(counts.updated)],
-                ['skipped', String(counts.skipped)],
-                ['errors', String(counts.errors)],
-              ])
-              .addRaw(`\nSchedule: every 10 minutes (cron: */10 * * * *)\n`)
-              .write();
+            const skippedTotal =
+              counts.skippedDirty +
+              counts.skippedBlocked +
+              counts.skippedDraft +
+              counts.skippedNotOptIn;
+
+            try {
+              await core.summary
+                .addHeading('Auto-update PR branches summary')
+                .addTable([
+                  [{ data: 'Metric', header: true }, { data: 'Count', header: true }],
+                  ['scanned', String(counts.scanned)],
+                  ['eligible', String(counts.eligible)],
+                  ['behind', String(counts.behind)],
+                  ['updated', String(counts.updated)],
+                  [
+                    'skipped (dirty/blocked/draft/not-optin)',
+                    `${skippedTotal} (${counts.skippedDirty}/${counts.skippedBlocked}/${counts.skippedDraft}/${counts.skippedNotOptIn})`,
+                  ],
+                  ['warnings', String(counts.warnings)],
+                ])
+                .addRaw(`\nSchedule: every 10 minutes (cron: */10 * * * *)\n`)
+                .write();
+            } catch (error) {
+              addWarning(`Step summary error: ${error.message}`);
+            }
 
             if (warnings.length > 0) {
               core.info(`Completed with ${warnings.length} warning(s).`);

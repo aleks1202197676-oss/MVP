@@ -1,7 +1,7 @@
 # Skill: AUTO-TASK Card Output Format
 
 ## Rule
-Агент генерирует task card без плейсхолдеров и с реальными путями из репозитория.
+Агент формирует task card без плейсхолдеров и с реальными путями из репозитория.
 
 ## Output template
 

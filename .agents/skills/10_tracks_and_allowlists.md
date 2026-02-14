@@ -7,6 +7,7 @@
 ## Philosophy
 - По умолчанию минимальный scope.
 - Явные deny-правила важнее неявных допущений.
+- Любой scope-check выполняется через `git diff --name-only`.
 
 ## Deny examples
 ### PR-F* (finance-only)
@@ -28,3 +29,4 @@
 
 ## Operational rule
 - Любое нарушение deny-правил = мгновенный fail с коротким списком нарушивших путей.
+- Перед коммитом и перед PR scope-check обязателен.

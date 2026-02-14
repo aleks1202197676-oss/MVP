@@ -13,6 +13,7 @@
 - Scope: точный allowlist директорий/файлов.
 - Запреты: явные deny-paths.
 - No new deps (если не согласовано отдельно).
+- Scope-check обязателен перед commit и перед PR: `git diff --name-only`.
 
 ### PREFLIGHT
 A) Где меняется логика (entrypoints + code path).
@@ -20,6 +21,7 @@ B) Источники риска/недетерминизма.
 C) Exact file list to modify/create.
 D) Acceptance criteria + commands.
 E) Top-5 failure modes + mitigations.
+F) Проверка сети (если нужны remote/bundle/PR шаги).
 
 ### IMPLEMENT
 - Шаги patch-плана в 3–7 пунктах.

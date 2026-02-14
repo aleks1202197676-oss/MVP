@@ -1,0 +1,113 @@
+name: auto-enable-automerge
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  enable-automerge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-enable PR automerge (0-click)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const name = context.repo.repo;
+            const schedule = '*/5 * * * * (every 5 minutes)';
+
+            const descriptionLines = [
+              'PR-A3 automerge daemon:',
+              '- Trigger: schedule + workflow_dispatch only.',
+              `- Schedule interval: ${schedule}.`,
+              '- Scope: open PRs targeting main.',
+              '- Opt-in naming: title starts with "PR-" OR branch starts with "pr-" OR "codex/".',
+              '- Opt-out naming: use titles/branches outside those prefixes.',
+              '- Draft PRs and DIRTY/BLOCKED PRs are skipped.',
+              '- Any API/GraphQL error (including unstable status) is logged and skipped; workflow remains successful.'
+            ];
+
+            core.info(descriptionLines.join('\n'));
+            await core.summary
+              .addHeading('0-click automerge daemon')
+              .addRaw(descriptionLines.join('\n'))
+              .write();
+
+            const query = `
+              query($owner: String!, $name: String!, $cursor: String) {
+                repository(owner: $owner, name: $name) {
+                  pullRequests(first: 100, after: $cursor, states: OPEN, baseRefName: "main", orderBy: {field: CREATED_AT, direction: ASC}) {
+                    nodes {
+                      id
+                      number
+                      title
+                      isDraft
+                      headRefName
+                      mergeStateStatus
+                    }
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
+                  }
+                }
+              }
+            `;
+
+            const mutation = `
+              mutation($pullRequestId: ID!) {
+                enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) {
+                  pullRequest {
+                    number
+                    autoMergeRequest {
+                      enabledAt
+                    }
+                  }
+                }
+              }
+            `;
+
+            const allPrs = [];
+            let cursor = null;
+
+            while (true) {
+              const data = await github.graphql(query, { owner, name, cursor });
+              const pullRequests = data.repository.pullRequests;
+              allPrs.push(...pullRequests.nodes);
+              if (!pullRequests.pageInfo.hasNextPage) break;
+              cursor = pullRequests.pageInfo.endCursor;
+            }
+
+            core.info(`Found ${allPrs.length} open PR(s) targeting main.`);
+
+            for (const pr of allPrs) {
+              const optIn = pr.title.startsWith('PR-') || pr.headRefName.startsWith('pr-') || pr.headRefName.startsWith('codex/');
+
+              if (pr.isDraft) {
+                core.info(`#${pr.number} skipped: draft PR.`);
+                continue;
+              }
+
+              if (!optIn) {
+                core.info(`#${pr.number} skipped: does not match opt-in naming.`);
+                continue;
+              }
+
+              if (pr.mergeStateStatus === 'DIRTY' || pr.mergeStateStatus === 'BLOCKED') {
+                core.info(`#${pr.number} skipped: mergeStateStatus=${pr.mergeStateStatus}.`);
+                continue;
+              }
+
+              try {
+                await github.graphql(mutation, { pullRequestId: pr.id });
+                core.info(`#${pr.number} auto-merge enabled (SQUASH).`);
+              } catch (error) {
+                const message = (error && error.message) ? error.message : String(error);
+                core.warning(`#${pr.number} skipped: enablePullRequestAutoMerge error: ${message}`);
+              }
+            }

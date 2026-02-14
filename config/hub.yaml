@@ -37,6 +37,8 @@ bundle:
   enabled: true
   output_path: data/ai_contract/latest/latest_bundle.zip
   include_globs:
+  - .agents/**
+  - AGENTS.md
   - contracts/meta/**
   - contracts/finance/**
   - contracts/finance_mvp/**
@@ -48,8 +50,6 @@ bundle:
   - requirements.txt
   - run_manifest.json
   - memory_pack/**
-  - AGENTS.md
-  - .agents/**
   - skills/**
   - tools/operator/**
   - tools/ci/**

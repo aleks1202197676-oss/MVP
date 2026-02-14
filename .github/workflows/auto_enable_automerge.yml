@@ -21,12 +21,14 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const owner = context.repo.owner;
             const name = context.repo.repo;
             const schedule = '*/5 * * * * (every 5 minutes)';
+            const summaryPath = process.env.GITHUB_STEP_SUMMARY;
 
             const descriptionLines = [
-              'PR-A3 automerge daemon:',
+              'PR-A8 automerge daemon:',
               '- Trigger: schedule + workflow_dispatch only.',
               `- Schedule interval: ${schedule}.`,
               '- Scope: open PRs targeting main.',
@@ -44,8 +46,14 @@ jobs:
             let skipped = 0;
             let warnings = 0;
 
-            const writeSummary = async () => {
+            const writeSummary = () => {
+              if (!summaryPath) {
+                core.warning('GITHUB_STEP_SUMMARY is not available.');
+                return;
+              }
+
               const summaryLines = [
+                '## 0-click automerge daemon',
                 ...descriptionLines,
                 '',
                 `Scanned: ${scanned}`,
@@ -54,17 +62,12 @@ jobs:
                 `Skipped: ${skipped}`,
                 `Warnings: ${warnings}`,
                 '',
-                'Opt-in reminder: PR title starts with "PR-" OR branch starts with "pr-" OR "codex/".'
+                'Opt-in reminder: PR title starts with "PR-" OR branch starts with "pr-" OR "codex/".',
+                ''
               ];
 
-              await core.summary
-                .clear()
-                .addHeading('0-click automerge daemon')
-                .addRaw(summaryLines.join('\n'))
-                .write();
+              fs.appendFileSync(summaryPath, `${summaryLines.join('\n')}\n`);
             };
-
-            await writeSummary();
 
             const query = `
               query($owner: String!, $name: String!, $cursor: String) {
@@ -100,68 +103,78 @@ jobs:
               }
             `;
 
-            const allPrs = [];
-            let cursor = null;
-
             try {
-              while (true) {
-                const data = await github.graphql(query, { owner, name, cursor });
-                const pullRequests = data.repository.pullRequests;
-                allPrs.push(...pullRequests.nodes);
-                if (!pullRequests.pageInfo.hasNextPage) break;
-                cursor = pullRequests.pageInfo.endCursor;
-              }
-            } catch (error) {
-              const message = (error && error.message) ? error.message : String(error);
-              warnings += 1;
-              core.warning(`Repository PR scan failed: ${message}`);
-              await writeSummary();
-              return;
-            }
+              const allPrs = [];
+              let cursor = null;
 
-            scanned = allPrs.length;
-            core.info(`Found ${scanned} open PR(s) targeting main.`);
-
-            for (const pr of allPrs) {
               try {
-                const optIn = pr.title.startsWith('PR-') || pr.headRefName.startsWith('pr-') || pr.headRefName.startsWith('codex/');
-
-                if (pr.isDraft) {
-                  skipped += 1;
-                  core.info(`#${pr.number} skipped: draft PR.`);
-                  continue;
+                while (true) {
+                  const data = await github.graphql(query, { owner, name, cursor });
+                  const pullRequests = data.repository.pullRequests;
+                  allPrs.push(...pullRequests.nodes);
+                  if (!pullRequests.pageInfo.hasNextPage) break;
+                  cursor = pullRequests.pageInfo.endCursor;
                 }
+              } catch (error) {
+                const message = (error && error.message) ? error.message : String(error);
+                warnings += 1;
+                core.warning(`Repository PR scan failed: ${message}`);
+                return;
+              }
 
-                if (!optIn) {
-                  skipped += 1;
-                  core.info(`#${pr.number} skipped: does not match opt-in naming.`);
-                  continue;
-                }
+              scanned = allPrs.length;
+              core.info(`Found ${scanned} open PR(s) targeting main.`);
 
-                if (pr.mergeStateStatus === 'DIRTY' || pr.mergeStateStatus === 'BLOCKED') {
-                  skipped += 1;
-                  core.info(`#${pr.number} skipped: mergeStateStatus=${pr.mergeStateStatus}.`);
-                  continue;
-                }
-
-                eligible += 1;
-
+              for (const pr of allPrs) {
                 try {
-                  await github.graphql(mutation, { pullRequestId: pr.id });
-                  enabled += 1;
-                  core.info(`#${pr.number} auto-merge enabled (SQUASH).`);
+                  const optIn = pr.title.startsWith('PR-') || pr.headRefName.startsWith('pr-') || pr.headRefName.startsWith('codex/');
+
+                  if (pr.isDraft) {
+                    skipped += 1;
+                    core.info(`#${pr.number} skipped: draft PR.`);
+                    continue;
+                  }
+
+                  if (!optIn) {
+                    skipped += 1;
+                    core.info(`#${pr.number} skipped: does not match opt-in naming.`);
+                    continue;
+                  }
+
+                  if (pr.mergeStateStatus === 'DIRTY' || pr.mergeStateStatus === 'BLOCKED') {
+                    skipped += 1;
+                    core.info(`#${pr.number} skipped: mergeStateStatus=${pr.mergeStateStatus}.`);
+                    continue;
+                  }
+
+                  eligible += 1;
+
+                  try {
+                    await github.graphql(mutation, { pullRequestId: pr.id });
+                    enabled += 1;
+                    core.info(`#${pr.number} auto-merge enabled (SQUASH).`);
+                  } catch (error) {
+                    warnings += 1;
+                    skipped += 1;
+                    const message = (error && error.message) ? error.message : String(error);
+                    core.warning(`#${pr.number} skipped: enablePullRequestAutoMerge error: ${message}`);
+                  }
                 } catch (error) {
                   warnings += 1;
                   skipped += 1;
                   const message = (error && error.message) ? error.message : String(error);
-                  core.warning(`#${pr.number} skipped: enablePullRequestAutoMerge error: ${message}`);
+                  core.warning(`#${pr.number} skipped: unexpected processing error: ${message}`);
                 }
+              }
+            } catch (error) {
+              warnings += 1;
+              const message = (error && error.message) ? error.message : String(error);
+              core.warning(`Automerge daemon handled fatal error and continued: ${message}`);
+            } finally {
+              try {
+                writeSummary();
               } catch (error) {
-                warnings += 1;
-                skipped += 1;
                 const message = (error && error.message) ? error.message : String(error);
-                core.warning(`#${pr.number} skipped: unexpected processing error: ${message}`);
+                core.warning(`Failed to write step summary: ${message}`);
               }
             }
-
-            await writeSummary();

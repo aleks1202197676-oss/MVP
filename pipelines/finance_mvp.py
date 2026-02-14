@@ -74,6 +74,12 @@ def _parse_items(path: Path) -> list[PurchaseItem]:
     return sorted(items, key=lambda item: (item.purchase_date, item.card_id, item.category))
 
 
+def _validate_item_card_ids(items: list[PurchaseItem], cards: dict[str, Card]) -> None:
+    missing_card_ids = sorted({item.card_id for item in items if item.card_id not in cards})
+    if missing_card_ids:
+        raise ValueError(f"finance_mvp/items.csv has unknown card_id values: {missing_card_ids}")
+
+
 def _parse_budget(path: Path) -> dict[str, BudgetMonth]:
     budget = {
         row["month"]: BudgetMonth(
@@ -282,6 +288,7 @@ def run_finance_mvp_pipeline(cfg: dict, run_id: str) -> Path:
 
     cards = _parse_cards(input_root / "cards.csv")
     items = _parse_items(input_root / "items.csv")
+    _validate_item_card_ids(items=items, cards=cards)
     budget = _parse_budget(input_root / "budget.csv")
 
     monthly_by_card: dict[tuple[str, str], float] = {}

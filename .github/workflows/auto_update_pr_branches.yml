@@ -1,0 +1,140 @@
+name: Auto Update PR Branches
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update eligible PR branches behind main
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const counts = {
+              scanned: 0,
+              eligible: 0,
+              updated: 0,
+              skipped: 0,
+              errors: 0,
+            };
+
+            const warnings = [];
+
+            const isOptIn = (pr) => {
+              return (
+                pr.title.startsWith('PR-') ||
+                pr.headRefName.startsWith('pr-') ||
+                pr.headRefName.startsWith('codex/')
+              );
+            };
+
+            const query = `
+              query($owner: String!, $repo: String!, $after: String) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequests(
+                    states: OPEN
+                    baseRefName: \"main\"
+                    first: 100
+                    after: $after
+                    orderBy: { field: CREATED_AT, direction: DESC }
+                  ) {
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
+                    nodes {
+                      number
+                      title
+                      isDraft
+                      headRefName
+                      mergeStateStatus
+                    }
+                  }
+                }
+              }
+            `;
+
+            let after = null;
+            let hasNextPage = true;
+
+            while (hasNextPage) {
+              let prNodes = [];
+              try {
+                const result = await github.graphql(query, { owner, repo, after });
+                const pullRequests = result?.repository?.pullRequests;
+                prNodes = pullRequests?.nodes || [];
+                hasNextPage = Boolean(pullRequests?.pageInfo?.hasNextPage);
+                after = pullRequests?.pageInfo?.endCursor || null;
+              } catch (error) {
+                counts.errors += 1;
+                warnings.push(`GraphQL list error: ${error.message}`);
+                core.warning(`GraphQL list error: ${error.message}`);
+                break;
+              }
+
+              for (const pr of prNodes) {
+                counts.scanned += 1;
+
+                if (pr.isDraft) {
+                  counts.skipped += 1;
+                  continue;
+                }
+
+                if (!isOptIn(pr)) {
+                  counts.skipped += 1;
+                  continue;
+                }
+
+                counts.eligible += 1;
+
+                if (pr.mergeStateStatus === 'BEHIND') {
+                  try {
+                    await github.rest.pulls.updateBranch({
+                      owner,
+                      repo,
+                      pull_number: pr.number,
+                    });
+                    counts.updated += 1;
+                  } catch (error) {
+                    counts.errors += 1;
+                    warnings.push(`PR #${pr.number} update error: ${error.message}`);
+                    core.warning(`PR #${pr.number} update error: ${error.message}`);
+                  }
+                  continue;
+                }
+
+                if (pr.mergeStateStatus === 'DIRTY' || pr.mergeStateStatus === 'BLOCKED') {
+                  counts.skipped += 1;
+                  continue;
+                }
+
+                counts.skipped += 1;
+              }
+            }
+
+            await core.summary
+              .addHeading('Auto-update PR branches summary')
+              .addTable([
+                [{ data: 'Metric', header: true }, { data: 'Count', header: true }],
+                ['scanned', String(counts.scanned)],
+                ['eligible', String(counts.eligible)],
+                ['updated', String(counts.updated)],
+                ['skipped', String(counts.skipped)],
+                ['errors', String(counts.errors)],
+              ])
+              .addRaw(`\nSchedule: every 10 minutes (cron: */10 * * * *)\n`)
+              .write();
+
+            if (warnings.length > 0) {
+              core.info(`Completed with ${warnings.length} warning(s).`);
+            }

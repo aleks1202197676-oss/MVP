@@ -9,6 +9,10 @@ permissions:
   pull-requests: write
   contents: write
 
+concurrency:
+  group: automerge-daemon
+  cancel-in-progress: false
+
 jobs:
   enable-automerge:
     runs-on: ubuntu-latest
@@ -33,10 +37,34 @@ jobs:
             ];
 
             core.info(descriptionLines.join('\n'));
-            await core.summary
-              .addHeading('0-click automerge daemon')
-              .addRaw(descriptionLines.join('\n'))
-              .write();
+
+            let scanned = 0;
+            let eligible = 0;
+            let enabled = 0;
+            let skipped = 0;
+            let warnings = 0;
+
+            const writeSummary = async () => {
+              const summaryLines = [
+                ...descriptionLines,
+                '',
+                `Scanned: ${scanned}`,
+                `Eligible: ${eligible}`,
+                `Enabled: ${enabled}`,
+                `Skipped: ${skipped}`,
+                `Warnings: ${warnings}`,
+                '',
+                'Opt-in reminder: PR title starts with "PR-" OR branch starts with "pr-" OR "codex/".'
+              ];
+
+              await core.summary
+                .clear()
+                .addHeading('0-click automerge daemon')
+                .addRaw(summaryLines.join('\n'))
+                .write();
+            };
+
+            await writeSummary();
 
             const query = `
               query($owner: String!, $name: String!, $cursor: String) {
@@ -75,39 +103,65 @@ jobs:
             const allPrs = [];
             let cursor = null;
 
-            while (true) {
-              const data = await github.graphql(query, { owner, name, cursor });
-              const pullRequests = data.repository.pullRequests;
-              allPrs.push(...pullRequests.nodes);
-              if (!pullRequests.pageInfo.hasNextPage) break;
-              cursor = pullRequests.pageInfo.endCursor;
+            try {
+              while (true) {
+                const data = await github.graphql(query, { owner, name, cursor });
+                const pullRequests = data.repository.pullRequests;
+                allPrs.push(...pullRequests.nodes);
+                if (!pullRequests.pageInfo.hasNextPage) break;
+                cursor = pullRequests.pageInfo.endCursor;
+              }
+            } catch (error) {
+              const message = (error && error.message) ? error.message : String(error);
+              warnings += 1;
+              core.warning(`Repository PR scan failed: ${message}`);
+              await writeSummary();
+              return;
             }
 
-            core.info(`Found ${allPrs.length} open PR(s) targeting main.`);
+            scanned = allPrs.length;
+            core.info(`Found ${scanned} open PR(s) targeting main.`);
 
             for (const pr of allPrs) {
-              const optIn = pr.title.startsWith('PR-') || pr.headRefName.startsWith('pr-') || pr.headRefName.startsWith('codex/');
-
-              if (pr.isDraft) {
-                core.info(`#${pr.number} skipped: draft PR.`);
-                continue;
-              }
-
-              if (!optIn) {
-                core.info(`#${pr.number} skipped: does not match opt-in naming.`);
-                continue;
-              }
-
-              if (pr.mergeStateStatus === 'DIRTY' || pr.mergeStateStatus === 'BLOCKED') {
-                core.info(`#${pr.number} skipped: mergeStateStatus=${pr.mergeStateStatus}.`);
-                continue;
-              }
-
               try {
-                await github.graphql(mutation, { pullRequestId: pr.id });
-                core.info(`#${pr.number} auto-merge enabled (SQUASH).`);
+                const optIn = pr.title.startsWith('PR-') || pr.headRefName.startsWith('pr-') || pr.headRefName.startsWith('codex/');
+
+                if (pr.isDraft) {
+                  skipped += 1;
+                  core.info(`#${pr.number} skipped: draft PR.`);
+                  continue;
+                }
+
+                if (!optIn) {
+                  skipped += 1;
+                  core.info(`#${pr.number} skipped: does not match opt-in naming.`);
+                  continue;
+                }
+
+                if (pr.mergeStateStatus === 'DIRTY' || pr.mergeStateStatus === 'BLOCKED') {
+                  skipped += 1;
+                  core.info(`#${pr.number} skipped: mergeStateStatus=${pr.mergeStateStatus}.`);
+                  continue;
+                }
+
+                eligible += 1;
+
+                try {
+                  await github.graphql(mutation, { pullRequestId: pr.id });
+                  enabled += 1;
+                  core.info(`#${pr.number} auto-merge enabled (SQUASH).`);
+                } catch (error) {
+                  warnings += 1;
+                  skipped += 1;
+                  const message = (error && error.message) ? error.message : String(error);
+                  core.warning(`#${pr.number} skipped: enablePullRequestAutoMerge error: ${message}`);
+                }
               } catch (error) {
+                warnings += 1;
+                skipped += 1;
                 const message = (error && error.message) ? error.message : String(error);
-                core.warning(`#${pr.number} skipped: enablePullRequestAutoMerge error: ${message}`);
+                core.warning(`#${pr.number} skipped: unexpected processing error: ${message}`);
               }
             }
+
+            await writeSummary();

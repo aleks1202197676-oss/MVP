@@ -14,16 +14,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
+        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-pip-
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies (optional)
         run: |
           if [ -f requirements.txt ]; then
-            python -m pip install -r requirements.txt
+            if python -m pip install --retries 5 --timeout 30 -r requirements.txt; then
+              echo "deps_status=succeeded" >> "$GITHUB_ENV"
+            else
+              echo "::warning::pip install failed; continuing without dependencies"
+              echo "deps_status=failed" >> "$GITHUB_ENV"
+            fi
           else
             echo "requirements.txt not found, skipping dependency installation"
+            echo "deps_status=skipped" >> "$GITHUB_ENV"
           fi
 
       - name: Compile Python sources
@@ -46,3 +62,10 @@ jobs:
           else
             echo "No compile targets found; nothing to compile"
           fi
+
+      - name: Dependency install summary
+        if: always()
+        run: |
+          status="${deps_status:-unknown}"
+          echo "### Dependency installation" >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: ${status}." >> "$GITHUB_STEP_SUMMARY"

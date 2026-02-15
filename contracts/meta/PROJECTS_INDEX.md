@@ -2,11 +2,23 @@
 
 Single entry point for all project-level documentation included in `latest_bundle.zip`.
 
+## Stable status spine (required in every bundle)
+
+Every project MUST have a stable set of paths so any assistant can rehydrate context without guessing:
+1. project map (`PROJECT_MAP.md`)
+2. current status (`STATUS.md`)
+3. definition of done (`DEFINITION_OF_DONE.md`)
+4. response protocol (`LLM_RESPONSE_PROTOCOL.md`)
+
+Global queue and handoff pointers:
+- `memory_pack/handoff.md`
+- `memory_pack/task_queue.md`
+
 ## Projects table
 
-| project_id | purpose | entry doc path | current status doc path | DoD path | last updated date |
-|---|---|---|---|---|---|
-| finance_mvp | Deterministic finance MVP reporting flow and delivery governance. | `contracts/meta/projects/finance_mvp/PROJECT_MAP.md` | `contracts/meta/projects/finance_mvp/STATUS.md` | `contracts/meta/projects/finance_mvp/DEFINITION_OF_DONE.md` | 2026-02-15 |
+| project_id | purpose | map path | status path | DoD path | response protocol path | last updated date |
+|---|---|---|---|---|---|---|
+| finance_mvp | Deterministic finance MVP reporting flow and delivery governance. | `contracts/meta/projects/finance_mvp/PROJECT_MAP.md` | `contracts/meta/projects/finance_mvp/STATUS.md` | `contracts/meta/projects/finance_mvp/DEFINITION_OF_DONE.md` | `contracts/meta/projects/finance_mvp/LLM_RESPONSE_PROTOCOL.md` | 2026-02-15 |
 
 ## How to add a new project
 

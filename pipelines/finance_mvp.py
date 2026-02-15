@@ -410,7 +410,6 @@ def run_finance_mvp_pipeline(cfg: dict, run_id: str) -> Path:
             [
                 "# Finance MVP report",
                 "",
-                f"- run_id: `{run_id}`",
                 f"- input_root: `{input_root.as_posix()}`",
                 f"- purchases_count: `{len(items)}`",
                 f"- total_purchase: `{total_purchase:.2f}`",

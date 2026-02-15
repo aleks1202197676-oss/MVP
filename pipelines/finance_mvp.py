@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -34,6 +35,14 @@ class BudgetMonth:
 
 
 REQUIRED_INPUTS = ("cards.csv", "items.csv", "budget.csv")
+
+
+def _sha256(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(8192), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def _read_csv_rows(path: Path) -> list[dict[str, str]]:
@@ -405,6 +414,10 @@ def run_finance_mvp_pipeline(cfg: dict, run_id: str) -> Path:
     final_debt = sum(float(row["ending_balance"]) for row in monthly_rows)
 
     report_path = output_root / "report.md"
+    input_fingerprints = [
+        (filename, _sha256(input_root / filename))
+        for filename in sorted(REQUIRED_INPUTS)
+    ]
     report_path.write_text(
         "\n".join(
             [
@@ -415,6 +428,9 @@ def run_finance_mvp_pipeline(cfg: dict, run_id: str) -> Path:
                 f"- total_purchase: `{total_purchase:.2f}`",
                 f"- total_planned_payment: `{total_payment:.2f}`",
                 f"- ending_debt: `{final_debt:.2f}`",
+                "",
+                "## Inputs fingerprint",
+                *[f"- `{filename}`: `{sha256}`" for filename, sha256 in input_fingerprints],
             ]
         )
         + "\n",

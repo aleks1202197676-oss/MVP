@@ -1,0 +1,84 @@
+name: PR Scope Conflict Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  scope-conflict-guard:
+    name: pr-scope-conflict-guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect overlapping files with other open PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CURRENT_PR: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "ERROR: gh CLI is required but not found." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "Collecting changed files for current PR #${CURRENT_PR}..."
+          gh api --paginate \
+            "/repos/${REPO}/pulls/${CURRENT_PR}/files?per_page=100" \
+            --jq '.[].filename' \
+            | sort -u > /tmp/cur.txt
+
+          echo "# PR Scope Conflict Guard" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Current PR: #${CURRENT_PR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Filter: open, non-draft PRs with label \`codex\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          mapfile -t other_prs < <(
+            gh api --paginate \
+              "/repos/${REPO}/pulls?state=open&per_page=100" \
+              --jq '.[] | select(.draft == false and (([.labels[].name] | index("codex")) != null)) | .number' \
+              | sort -n -u \
+              | grep -vx "${CURRENT_PR}" || true
+          )
+
+          if [ "${#other_prs[@]}" -eq 0 ]; then
+            echo "✅ PASS: No other open codex-labeled PRs to compare." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          has_conflict=0
+
+          for pr in "${other_prs[@]}"; do
+            gh api --paginate \
+              "/repos/${REPO}/pulls/${pr}/files?per_page=100" \
+              --jq '.[].filename' \
+              | sort -u > /tmp/other.txt
+
+            overlap=$(comm -12 /tmp/cur.txt /tmp/other.txt || true)
+
+            if [ -n "$overlap" ]; then
+              has_conflict=1
+              {
+                echo "## ❌ Conflict with PR #${pr}"
+                echo ""
+                echo "Overlapping files:"
+                echo '```'
+                echo "$overlap"
+                echo '```'
+                echo ""
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+          if [ "$has_conflict" -eq 1 ]; then
+            echo "Result: FAIL — overlapping files found." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "✅ PASS: No file overlaps with other open codex-labeled PRs." >> "$GITHUB_STEP_SUMMARY"

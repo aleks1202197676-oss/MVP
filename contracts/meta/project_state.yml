@@ -7,5 +7,7 @@ key_artifacts:
 last_green_run: '20260209_204416'
 notes:
 - State file is updated by pipelines/run_all.py after successful execution.
+- finance_mvp status spine synced after merged PR-A14/PR-A15/PR-A16.
+- Manual step remains: enable branch protection required check for A14 in repository settings.
 project: MVP
 version: 1

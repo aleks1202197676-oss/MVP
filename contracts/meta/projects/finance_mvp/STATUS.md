@@ -4,24 +4,27 @@
 - **Done:**
   - CI publishes/verifies `latest_bundle` asset (A12).
   - Manual `workflow_dispatch` is allowed for publish job on `main` (A13).
+  - PR overlap guard rollout merged (A14).
+  - Multi-project PROJECT MAP structure and templates merged (A15).
+  - Stable status spine and handoff points merged (A16).
   - `finance_mvp` `report.md` is deterministic (F5).
   - Report includes deterministic input fingerprint (F6).
 - **Doing:**
-  - Establishing multi-project PROJECT MAP structure and templates.
+  - Manual governance follow-up: enable branch protection required check for A14 in repository Settings.
 - **Next:**
-  - Continue PR overlap guard implementation/rollout as planned from A14.
+  - Confirm required check enablement for A14 and record evidence in status spine.
 
 ## Track status
-- `A`: Active; project map system introduced and bundle handoff path stabilized.
+- `A`: A14/A15/A16 merged; awaiting manual branch protection required-check enablement confirmation for A14.
 - `F`: Deterministic report and fingerprint requirements satisfied.
-- `G`: PR overlap guard tracked as planned/next from A14.
+- `G`: PR overlap guard implementation merged via A14; settings-level required check enablement still pending manually.
 
 ## Remaining DoD checklist
-- [ ] Close remaining governance tasks for overlap guard rollout.
+- [ ] Enable branch protection required check for A14 in repository Settings and record confirmation evidence.
 - [ ] Keep status/check evidence updated for each subsequent PR.
 
 ## Blockers
-- No active blockers documented.
+- Branch protection required check for A14 is not yet enabled in repository Settings (manual step pending).
 
 ## Known risks
 - Inconsistent doc updates can reduce handoff clarity.

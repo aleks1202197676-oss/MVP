@@ -135,3 +135,40 @@ jobs:
             fi
             sleep 5
           done
+
+      - name: Verify published latest_bundle release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NAME: latest-bundle
+          ASSET_NAME: latest_bundle.zip
+          LOCAL_ASSET_PATH: data/ai_contract/latest/latest_bundle.zip
+        run: |
+          set -euo pipefail
+
+          local_sha="$(sha256sum "$LOCAL_ASSET_PATH" | awk '{print $1}')"
+          download_dir="$(mktemp -d)"
+          downloaded_asset="$download_dir/$ASSET_NAME"
+          downloaded_sha="download failed"
+          status="FAIL"
+
+          if gh release download "$RELEASE_NAME" --pattern "$ASSET_NAME" --dir "$download_dir" --clobber >/dev/null 2>&1; then
+            downloaded_sha="$(sha256sum "$downloaded_asset" | awk '{print $1}')"
+            if [ "$local_sha" = "$downloaded_sha" ]; then
+              status="PASS"
+            fi
+          fi
+
+          {
+            echo "### Post-publish verification"
+            echo "- Release: $RELEASE_NAME"
+            echo "- Asset: $ASSET_NAME"
+            echo "- Local sha256: $local_sha"
+            echo "- Downloaded sha256: $downloaded_sha"
+            echo "- Result: $status"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$status" != "PASS" ]; then
+            echo "Post-publish verification failed"
+            exit 1
+          fi
+
